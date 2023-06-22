@@ -1,0 +1,13 @@
+name: 'Incremental Version plugin/theme'
+description: "Action permettant d'incrémenter la version d'un plugin ou un thème"
+inputs:
+  indexFile:  # id of input
+    description: 'Enter file plugin or theme'
+    required: false
+    default: false
+outputs:
+  version: # id of output
+    description: 'Version incrémentée du plugin ou du thème'
+runs:
+  using: 'node16'
+  main: 'index.js'
