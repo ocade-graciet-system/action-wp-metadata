@@ -24,10 +24,10 @@ const getFileContent = (pathFile) => {
  * **newVersion** (ex: 0.0.2)
  */
 const incrementeVersion = (oldVersion) => {
-  const splitVersion = oldVersion.split(".");
+  const splitVersion = trim(oldVersion.split("."));
   const lastElementValue = (splitVersion[splitVersion.length - 1])
   splitVersion[splitVersion.length - 1] = parseInt(lastElementValue) + 1;
-  return splitVersion.join(".");    
+  return trim(splitVersion.join("."));    
 };
 
 /**
@@ -153,14 +153,13 @@ const JSONtoComment = (json, isPHP) => {
 const RunVersionning = (indexFile=false) => {
   const pathIndex = !indexFile ? "./style.css" : indexFile;
   const newVersion = extractVersion(pathIndex);
-  core.setOutput("version", newVersion);
+  core.setOutput("version", trim(newVersion));
   const comment = extractComment(getFileContent(pathIndex));
-  const commentNewVersion = comment.replace(/Version:.*\n/, `Version: ${newVersion}\n`);
+  const commentNewVersion = comment.replace(/Version:.*\n/, `Version:${newVersion}\n`);
   const json = commentToJSON(commentNewVersion);
   json["is_plugin"] = indexFile ?  true : false;
   // Que ce soit un fichier .php on style.css on remplace le commentaire par le nouveau
   const newContentIndexFile = getFileContent(pathIndex).replace(comment, commentNewVersion);
-
 
   writeFileSync(pathIndex, newContentIndexFile ,{encoding: "utf8"});
   writeFileSync("./metadata.json", JSON.stringify(json) ,{encoding: "utf8"});
