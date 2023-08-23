@@ -27,7 +27,7 @@ const incrementeVersion = (oldVersion) => {
   const splitVersion = oldVersion.split(".");
   const lastElementValue = (splitVersion[splitVersion.length - 1])
   splitVersion[splitVersion.length - 1] = parseInt(lastElementValue) + 1;
-  return splitVersion.join(".").trim();    
+  return splitVersion.join(".");    
 };
 
 /**
