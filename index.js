@@ -124,7 +124,7 @@ const commentToJSON = (comment) => {
     }
     line = (isContentBegin(comment, "<?php")) ? line.slice(2) : line;
     line = line.split(": ", 2);
-    output[toKebabCase(line[0])] = line[1].trim();
+    output[toKebabCase(line[0])] = line[1];
   });
   return output;
 };
@@ -153,7 +153,7 @@ const JSONtoComment = (json, isPHP) => {
 const RunVersionning = (indexFile=false) => {
   const pathIndex = !indexFile ? "./style.css" : indexFile;
   const newVersion = extractVersion(pathIndex);
-  core.setOutput("version", newVersion).trim();
+  core.setOutput("version", newVersion);
   const comment = extractComment(getFileContent(pathIndex));
   const commentNewVersion = comment.replace(/Version:.*\n/, `Version:${newVersion}\n`);
   const json = commentToJSON(commentNewVersion);
