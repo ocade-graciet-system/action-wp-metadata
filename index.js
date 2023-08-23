@@ -24,10 +24,10 @@ const getFileContent = (pathFile) => {
  * **newVersion** (ex: 0.0.2)
  */
 const incrementeVersion = (oldVersion) => {
-  const splitVersion = trim(oldVersion.split("."));
+  const splitVersion = oldVersion.split(".").trim();
   const lastElementValue = (splitVersion[splitVersion.length - 1])
   splitVersion[splitVersion.length - 1] = parseInt(lastElementValue) + 1;
-  return trim(splitVersion.join("."));    
+  return splitVersion.join(".").trim();    
 };
 
 /**
@@ -153,7 +153,7 @@ const JSONtoComment = (json, isPHP) => {
 const RunVersionning = (indexFile=false) => {
   const pathIndex = !indexFile ? "./style.css" : indexFile;
   const newVersion = extractVersion(pathIndex);
-  core.setOutput("version", trim(newVersion));
+  core.setOutput("version", newVersion).trim();
   const comment = extractComment(getFileContent(pathIndex));
   const commentNewVersion = comment.replace(/Version:.*\n/, `Version:${newVersion}\n`);
   const json = commentToJSON(commentNewVersion);
