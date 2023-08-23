@@ -125,6 +125,8 @@ const commentToJSON = (comment) => {
     line = (isContentBegin(comment, "<?php")) ? line.slice(2) : line;
     line = line.split(": ", 2);
     output[toKebabCase(line[0])] = line[1];
+    const value = line[1].trim(); // Ajoutez cette ligne pour supprimer les espaces supplémentaires
+    output[key] = value;
   });
   return output;
 };
