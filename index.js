@@ -155,11 +155,7 @@ const RunVersionning = (indexFile=false) => {
   const newVersion = extractVersion(pathIndex);
   core.setOutput("version", newVersion);
   const comment = extractComment(getFileContent(pathIndex));
-  console.log('Commentaire avant la modification:', comment);
-  const commentNewVersion = comment.replace(/(Version:)(\s*)([^\n]*)\n/, (match, p1, p2, p3) => {
-    return `${p1} ${newVersion}\n`;
-  });
-  console.log('Commentaire après la modification:', commentNewVersion);
+  const commentNewVersion = comment.replace(/(Version:)(\s+)(\d+\.\d+\.\d+)/, `$1 ${newVersion}`);
   const json = commentToJSON(commentNewVersion);
   json["is_plugin"] = indexFile ?  true : false;
   // Que ce soit un fichier .php on style.css on remplace le commentaire par le nouveau
