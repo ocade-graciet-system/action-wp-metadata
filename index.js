@@ -123,10 +123,8 @@ const commentToJSON = (comment) => {
       return;
     }
     line = (isContentBegin(comment, "<?php")) ? line.slice(2) : line;
-    const parts = line.split(": ", 2);
-    const key = toKebabCase(parts[0].trim());
-    const value = parts[1]?.trim() || ""; // Utilisez trim ici pour supprimer les espaces supplémentaires
-    output[key] = value;
+    line = line.split(": ", 2);
+    output[toKebabCase(line[0])] = line[1].trim();
   });
   return output;
 };
@@ -157,11 +155,12 @@ const RunVersionning = (indexFile=false) => {
   const newVersion = extractVersion(pathIndex);
   core.setOutput("version", newVersion);
   const comment = extractComment(getFileContent(pathIndex));
-  const commentNewVersion = comment.replace(/^(\* Version:)\s+\d+\.\d+\.\d+/gm, `$1 ${newVersion}`);
+  const commentNewVersion = comment.replace(/Version:.*\n/, `Version: ${newVersion}\n`);
   const json = commentToJSON(commentNewVersion);
   json["is_plugin"] = indexFile ?  true : false;
   // Que ce soit un fichier .php on style.css on remplace le commentaire par le nouveau
   const newContentIndexFile = getFileContent(pathIndex).replace(comment, commentNewVersion);
+
 
   writeFileSync(pathIndex, newContentIndexFile ,{encoding: "utf8"});
   writeFileSync("./metadata.json", JSON.stringify(json) ,{encoding: "utf8"});
