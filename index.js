@@ -4,13 +4,23 @@ const readFileSync = require("fs").readFileSync;
 const writeFileSync = require("fs").writeFileSync;
 
 /**
+ * @Description Normalise les fins de ligne (CRLF -> LF)
+ * @Params **content**: contenu à normaliser
+ * @Return **string**: contenu avec fins de ligne LF uniquement
+ */
+const normalizeLineEndings = (content) => {
+  return content.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+};
+
+/**
  * @Params 
  * **pathFile**: path du fichier à lire
- * @Return **string**: contenu du fichier
+ * @Return **string**: contenu du fichier (normalisé en LF)
  */
 const getFileContent = (pathFile) => {
   try {
-    return readFileSync(pathFile, {encoding: "utf8"});
+    const content = readFileSync(pathFile, {encoding: "utf8"});
+    return normalizeLineEndings(content);
   } catch (e) {
     throw Error(`🆘 Impossible de lire le fichier: ${pathFile}`);
   }
@@ -24,7 +34,7 @@ const getFileContent = (pathFile) => {
  * **newVersion** (ex: 0.0.2)
  */
 const incrementeVersion = (oldVersion) => {
-  const splitVersion = oldVersion.split(".");
+  const splitVersion = oldVersion.trim().split(".");
   const lastElementValue = (splitVersion[splitVersion.length - 1])
   splitVersion[splitVersion.length - 1] = parseInt(lastElementValue) + 1;
   return splitVersion.join(".");    
@@ -38,7 +48,7 @@ const incrementeVersion = (oldVersion) => {
  * @Returns Boolean
  */
 const isContentBegin = (content, valueSearch) => {
-  return (content.indexOf(valueSearch) === 0) ? true : false;
+  return content.indexOf(valueSearch) === 0;
 };
 
 /**
@@ -55,16 +65,23 @@ const toKebabCase = (string) => {
  * @Params **fileContent**: contenu d'un fichier 
 */
 const extractComment = (fileContent) => {
-  let regexPlugin = "^<\\?php\\n\\/\\*\\*\\n(\\*.*\\n)*\\*\\/";
-  let regexTheme = "^\\/\\*\!?\\n(.*\\n)*\\*\\/";
-  regexp = (isContentBegin(fileContent, "<?php")) ? (regexPlugin) : (regexTheme);
-  regexp = new RegExp(regexp, "g");
-  const matches = [...fileContent.matchAll(regexp)];
-  if (matches.length && matches[0].length) {
-    for (match of matches) {
-      return match[0] // Correspond à la première capture
-    }
+  if (!fileContent) {
+    throw Error("🆘 Contenu du fichier vide ou invalide");
   }
+  
+  // Regex pour plugin PHP : <?php suivi de /** ... */
+  const regexPlugin = /^<\?php\n\/\*\*\n(\*.*\n)*\*\//;
+  // Regex pour thème CSS : /* ... */ ou /*! ... */
+  const regexTheme = /^\/\*!?\n(.*\n)*?\*\//;
+  
+  const regexp = isContentBegin(fileContent, "<?php") ? regexPlugin : regexTheme;
+  const matches = fileContent.match(regexp);
+  
+  if (matches && matches[0]) {
+    return matches[0];
+  }
+  
+  throw Error("🆘 Impossible d'extraire le commentaire du fichier. Vérifiez le format du header.");
 };
 
 /**
@@ -82,32 +99,33 @@ const extractVersionPackageJson = (indexFile) => {
     const packageJson = JSON.parse(getFileContent("./"+ extractFolder(indexFile) +"/package.json"));
     return packageJson.version;
   } catch (e) {
-    throw Error();
+    throw Error("🆘 Impossible de lire le package.json");
   }
 };
 
 /**
- * 
  * @Description Extraction de la version des commentaires 
  */
 const extractVersionComment = (indexFile) => {
   const comment = extractComment(getFileContent(indexFile));
-  regexp = "Version(\\s)?:(.*)";
-  regexp = new RegExp(regexp, "g");
+  const regexp = /Version\s?:(.*)/g;
   const matches = [...comment.matchAll(regexp)];
-  if (matches.length && matches[0].length) {
-    for (match of matches) {
-      return incrementeVersion(match[2]);
-    }
+  
+  if (matches.length && matches[0].length >= 2) {
+    return incrementeVersion(matches[0][1]);
   }
+  
+  throw Error("🆘 Impossible de trouver la version dans le commentaire");
 };
 
 /**
 * @Description Extraction de la version si possible du package.json sinon du fichier d'index 
  */
 const extractVersion = (indexFile) => {
-  if (indexFile === "./package.json") return extractVersionPackageJson(indexFile);
-  else return extractVersionComment(indexFile);
+  if (indexFile === "./package.json") {
+    return extractVersionPackageJson(indexFile);
+  }
+  return extractVersionComment(indexFile);
 };
 
 /**
@@ -117,21 +135,34 @@ const extractVersion = (indexFile) => {
  */
 const commentToJSON = (comment) => {
   const output = {};
+  const isPHP = isContentBegin(comment, "<?php");
+  
   comment.split("\n").forEach(line => {
-    if ((["<?php", "/**", "*/", "*", "/*!"].includes(line))
-      || (line.indexOf("* @") == 0)) {
+    // Ignorer les lignes de structure du commentaire
+    if (["<?php", "/**", "*/", "*", "/*!"].includes(line.trim()) 
+        || line.trim().indexOf("* @") === 0
+        || line.trim() === "") {
       return;
     }
-    line = (isContentBegin(comment, "<?php")) ? line.slice(2) : line;
-    line = line.split(": ", 2);
-    output[toKebabCase(line[0])] = line[1].trim();
+    
+    // Retirer le préfixe "* " pour les fichiers PHP
+    let cleanLine = isPHP ? line.replace(/^\s*\*\s?/, '') : line;
+    
+    // Séparer clé et valeur
+    const colonIndex = cleanLine.indexOf(": ");
+    if (colonIndex > -1) {
+      const key = cleanLine.substring(0, colonIndex).trim();
+      const value = cleanLine.substring(colonIndex + 2).trim();
+      if (key && value) {
+        output[toKebabCase(key)] = value;
+      }
+    }
   });
+  
   return output;
 };
 
 /**
- * ?! Non utilisé, seulement la version updated.
- * !! Garde parce qu'exemple forEach Object.
  * @Description Convertie un json en commentaire WP
  * @Params
  * - **json**: informations plugin/thème
@@ -150,28 +181,39 @@ const JSONtoComment = (json, isPHP) => {
   return output.join("\n");
 };
 
-const RunVersionning = (indexFile=false) => {
+const RunVersionning = (indexFile = false) => {
   const pathIndex = !indexFile ? "./style.css" : indexFile;
+  
+  console.log(`📄 Lecture du fichier: ${pathIndex}`);
+  
   const newVersion = extractVersion(pathIndex);
+  console.log(`📌 Nouvelle version: ${newVersion}`);
+  
   core.setOutput("version", newVersion);
-  const comment = extractComment(getFileContent(pathIndex));
-  const commentNewVersion = comment.replace(/Version:.*\n/, `Version:${newVersion}\n`);
+  
+  const fileContent = getFileContent(pathIndex);
+  const comment = extractComment(fileContent);
+  const commentNewVersion = comment.replace(/Version\s?:.*\n/, `Version: ${newVersion}\n`);
   const json = commentToJSON(commentNewVersion);
-  json["is_plugin"] = indexFile ?  true : false;
-  // Que ce soit un fichier .php on style.css on remplace le commentaire par le nouveau
-  const newContentIndexFile = getFileContent(pathIndex).replace(comment, commentNewVersion);
+  json["is_plugin"] = indexFile ? true : false;
+  
+  // Remplacer le commentaire par le nouveau
+  const newContentIndexFile = fileContent.replace(comment, commentNewVersion);
 
-
-  writeFileSync(pathIndex, newContentIndexFile ,{encoding: "utf8"});
-  writeFileSync("./metadata.json", JSON.stringify(json) ,{encoding: "utf8"});
+  writeFileSync(pathIndex, newContentIndexFile, {encoding: "utf8"});
+  writeFileSync("./metadata.json", JSON.stringify(json, null, 2), {encoding: "utf8"});
+  
+  console.log(`✅ Fichier ${pathIndex} mis à jour`);
+  console.log(`✅ metadata.json généré`);
 };
 
-
 try {
-  if ((core.getInput('indexFile') === "") || (core.getInput('indexFile') === "style.css")) {
+  const indexFile = core.getInput('indexFile');
+  
+  if (!indexFile || indexFile === "" || indexFile === "style.css") {
     RunVersionning();
   } else {
-    RunVersionning(core.getInput('indexFile'));
+    RunVersionning(indexFile);
   }
 } catch (error) {
   core.setFailed(error.message);
