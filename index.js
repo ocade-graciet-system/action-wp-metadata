@@ -70,7 +70,8 @@ const extractComment = (fileContent) => {
   }
   
   // Regex pour plugin PHP : <?php suivi de /** ... */
-  const regexPlugin = /^<\?php\n\/\*\*\n(\*.*\n)*\*\//;
+  // const regexPlugin = /^<\?php\n\/\*\*\n(\*.*\n)*\*\//;
+  const regexPlugin = /^<\?php\s*\n\/\*\*\n(\*.*\n)*\*\//; // Plus tolérant.
   // Regex pour thème CSS : /* ... */ ou /*! ... */
   const regexTheme = /^\/\*!?\n(.*\n)*?\*\//;
   
