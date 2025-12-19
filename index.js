@@ -70,10 +70,11 @@ const extractComment = (fileContent) => {
   }
   
   // Regex pour plugin PHP : <?php suivi de /** ... */
-  // const regexPlugin = /^<\?php\n\/\*\*\n(\*.*\n)*\*\//;
-  const regexPlugin = /^<\?php\s*\n\/\*\*\n(\*.*\n)*\*\//; // Plus tolérant.
+  // Tolère les lignes vides et les espaces avant les *
+  const regexPlugin = /^<\?php\s*\n+\s*\/\*\*\n(\s*\*.*\n)*\s*\*\//;
+  
   // Regex pour thème CSS : /* ... */ ou /*! ... */
-  const regexTheme = /^\/\*!?\n(.*\n)*?\*\//;
+  const regexTheme = /^\/\*!?\s*\n(\s*.*\n)*?\s*\*\//;
   
   const regexp = isContentBegin(fileContent, "<?php") ? regexPlugin : regexTheme;
   const matches = fileContent.match(regexp);
@@ -81,6 +82,12 @@ const extractComment = (fileContent) => {
   if (matches && matches[0]) {
     return matches[0];
   }
+  
+  // Debug: afficher les premiers caractères pour comprendre le problème
+  console.log("🔍 Debug - Premiers 500 caractères du fichier:");
+  console.log(fileContent.substring(0, 500));
+  console.log("🔍 Debug - Codes des 50 premiers caractères:");
+  console.log([...fileContent.substring(0, 50)].map(c => c.charCodeAt(0)));
   
   throw Error("🆘 Impossible d'extraire le commentaire du fichier. Vérifiez le format du header.");
 };
@@ -108,8 +115,14 @@ const extractVersionPackageJson = (indexFile) => {
  * @Description Extraction de la version des commentaires 
  */
 const extractVersionComment = (indexFile) => {
-  const comment = extractComment(getFileContent(indexFile));
-  const regexp = /Version\s?:(.*)/g;
+  const fileContent = getFileContent(indexFile);
+  const comment = extractComment(fileContent);
+  
+  if (!comment) {
+    throw Error("🆘 Commentaire non trouvé dans le fichier");
+  }
+  
+  const regexp = /Version\s*:\s*([\d.]+)/gi;
   const matches = [...comment.matchAll(regexp)];
   
   if (matches.length && matches[0].length >= 2) {
@@ -176,9 +189,9 @@ const JSONtoComment = (json, isPHP) => {
   }
   output.push("/**");
   Object.entries(json).forEach(([key, value]) => {
-    output.push("* "+key+": "+value)
+    output.push(" * "+key+": "+value)
   })
-  output.push("*/");
+  output.push(" */");
   return output.join("\n");
 };
 
@@ -194,7 +207,7 @@ const RunVersionning = (indexFile = false) => {
   
   const fileContent = getFileContent(pathIndex);
   const comment = extractComment(fileContent);
-  const commentNewVersion = comment.replace(/Version\s?:.*\n/, `Version: ${newVersion}\n`);
+  const commentNewVersion = comment.replace(/Version\s*:\s*[\d.]+/i, `Version: ${newVersion}`);
   const json = commentToJSON(commentNewVersion);
   json["is_plugin"] = indexFile ? true : false;
   
